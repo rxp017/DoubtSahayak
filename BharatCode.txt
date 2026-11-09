@@ -1,0 +1,5 @@
+DoubtSahayak — BharatCode Build League submission
+Project: DoubtSahayak — multilingual (Telugu / Hindi / English) study-doubt
+solver for CSM students, grounded in the author's own GATE DA drill notes.
+Stack: React (Vite) frontend + FastAPI backend, BharatCode API
+(OpenAI-compatible chat completions, base https://bharatcode.ai/api/model/v1).
