@@ -1,0 +1,5 @@
+# Dependencies for the Vercel serverless functions (api/*.py).
+# Vercel's Python runtime installs only from a requirements.txt in the
+# PROJECT ROOT — backend/requirements.txt is not picked up, so without
+# this file every /api/* function crashes on `import httpx`.
+httpx==0.28.1
