@@ -28,7 +28,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            self._send(200, {"subjects": kb_grouped(), "summary": kb_summary()})
+            self._send(200, {"papers": kb_grouped(), "summary": kb_summary()})
         except Exception as exc:  # keep the function from crashing the deploy
             self._send(500, {"detail": f"Server error: {exc}"})
 
