@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -20,6 +20,7 @@ const FALLBACK_PAPERS = [
 ]
 
 const LANGUAGES = ['English', 'Telugu', 'Hindi']
+const LANG_LABELS = { English: 'English', Telugu: 'తెలుగు', Hindi: 'हिन्दी' }
 
 const EXAMPLES = [
   {
@@ -173,6 +174,28 @@ function sourceBadge(source) {
   )
 }
 
+/** Animated score count-up on the quiz results screen. */
+function ScoreCount({ value, total }) {
+  const [n, setN] = useState(0)
+  const raf = useRef(null)
+  useEffect(() => {
+    const start = performance.now()
+    const dur = 700
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / dur)
+      setN(Math.round(value * (1 - Math.pow(1 - p, 3))))
+      if (p < 1) raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [value])
+  return (
+    <div className="quiz-score-num">
+      {n} / {total}
+    </div>
+  )
+}
+
 export default function App() {
   const [tab, setTab] = useState('ask')
   const [papers, setPapers] = useState(FALLBACK_PAPERS)
@@ -201,6 +224,7 @@ export default function App() {
 
   const paperInfo = papers.find((p) => p.code === paper) || FALLBACK_PAPERS[0]
   const subjects = paperInfo.subjects
+  const totalNotes = papers.reduce((s, p) => s + (p.total || 0), 0)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/papers`)
@@ -335,43 +359,72 @@ export default function App() {
   return (
     <div className="page">
       <header className="hero">
-        <h1>
-          Doubt<span>Sahayak</span>
-        </h1>
-        <p className="tagline">
-          Ask a GATE doubt in Telugu, Hindi or English — get a short
-          explanation + one worked example, grounded in GATE notes and
-          standard reference material.
-        </p>
-        <p className="sub">
-          All 30 GATE papers + General Aptitude · Built for CSM students ·
-          Powered by the BharatCode API ·{' '}
-          <a
-            href="https://bharatcode.ai/hackathon"
-            target="_blank"
-            rel="noreferrer"
-          >
-            BharatCode Build League
-          </a>
-        </p>
-        <label className="paper-picker">
-          GATE paper
-          <select value={paper} onChange={(e) => changePaper(e.target.value)}>
-            {papers.map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.code} — {p.name} ({p.total} notes)
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="orb orb-a" />
+        <div className="orb orb-b" />
+        <div className="orb orb-c" />
+        <div className="hero-inner">
+          <div className="brand">
+            <div className="brand-mark">?</div>
+            <h1>
+              Doubt<em>Sahayak</em>
+            </h1>
+          </div>
+          <p className="tagline">
+            Ask a GATE doubt in Telugu, Hindi or English — get a short
+            explanation + one worked example, grounded in GATE notes and
+            standard reference material.
+          </p>
+          <p className="sub">
+            All 30 GATE 2027 papers + General Aptitude · Built for CSM
+            students · Powered by the BharatCode API ·{' '}
+            <a
+              href="https://bharatcode.ai/hackathon"
+              target="_blank"
+              rel="noreferrer"
+            >
+              BharatCode Build League
+            </a>
+          </p>
+          <div className="stats">
+            <div className="stat">
+              <b>{totalNotes > 0 ? totalNotes.toLocaleString('en-IN') : '…'}</b>
+              <span>notes in the KB</span>
+            </div>
+            <div className="stat">
+              <b>{papers.length}</b>
+              <span>GATE papers</span>
+            </div>
+            <div className="stat">
+              <b>3</b>
+              <span>languages</span>
+            </div>
+            <div className="stat">
+              <b>{history.length}</b>
+              <span>doubts solved</span>
+            </div>
+          </div>
+          <label className="paper-picker">
+            GATE paper
+            <select value={paper} onChange={(e) => changePaper(e.target.value)}>
+              {papers.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.code} — {p.name} ({p.total} notes)
+                </option>
+              ))}
+            </select>
+            <span className="paper-meta">
+              Now studying: <b>{paperInfo.code} — {paperInfo.name}</b>
+            </span>
+          </label>
+        </div>
       </header>
 
       <nav className="tabs">
         {[
-          ['ask', 'Ask a doubt'],
-          ['formulas', 'Formula sheet'],
-          ['quiz', 'Quiz me'],
-          ['history', `History (${history.length})`],
+          ['ask', '✦ Ask a doubt'],
+          ['formulas', 'ƒ Formula sheet'],
+          ['quiz', '▶ Quiz me'],
+          ['history', `↺ History (${history.length})`],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -384,346 +437,373 @@ export default function App() {
         ))}
       </nav>
 
-      {tab === 'ask' && (
-        <main className="card">
-          <div className="row">
-            <label>
-              Language
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Subject ({paper})
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              >
-                {subjects.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="q-label">
-            Your doubt
-            <textarea
-              rows={4}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g. What is the difference between P(X ≤ 3) and P(X < 3) for a Binomial variable?"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask()
-              }}
-            />
-          </label>
-
-          <div className="examples">
-            <span>Try one:</span>
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex.label}
-                type="button"
-                onClick={() => loadExample(ex)}
-              >
-                {ex.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            className="ask"
-            type="button"
-            onClick={() => ask()}
-            disabled={loading || !question.trim()}
-          >
-            {loading ? 'Thinking…' : 'Solve my doubt'}
-          </button>
-          <p className="hint">Tip: Ctrl/⌘ + Enter also asks.</p>
-
-          {error && <div className="error">{error}</div>}
-
-          {result && (
-            <section className="answer">
-              <div className="badges">
-                <span className={`mode mode-${result.mode}`}>
-                  {MODE_LABELS[result.mode] || result.mode}
-                </span>
-                {result.model && <span className="model">{result.model}</span>}
-                {groundingBadge(result)}
+      <div className="tab-panel" key={tab}>
+        {tab === 'ask' && (
+          <main className="card">
+            <div className="row">
+              <div>
+                <span className="field-label">Answer language</span>
+                <div className="seg">
+                  {LANGUAGES.map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      className={language === l ? 'active' : ''}
+                      onClick={() => setLanguage(l)}
+                    >
+                      {LANG_LABELS[l]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {result.warning && <div className="warn">{result.warning}</div>}
-              <div className="answer-body">{renderAnswer(result.answer)}</div>
-              {result.notes && result.notes.length > 0 && (
-                <details className="notes">
-                  <summary>
-                    Grounding notes used ({result.notes.length})
-                  </summary>
-                  <ul>
-                    {result.notes.map((n) => (
-                      <li key={n.id}>
-                        <strong>{n.topic}</strong> {sourceBadge(n.source)}
-                        <br />
-                        {n.fact}
-                        <br />
-                        <code>{n.formula}</code>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </section>
-          )}
-        </main>
-      )}
+            </div>
 
-      {tab === 'formulas' && (
-        <main className="card">
-          <h2 className="section-title">Formula sheet — {paper}</h2>
-          <p className="section-sub">
-            Every formula in the knowledge base for {paperInfo.name}, by
-            subject. Entries marked {sourceBadge('drill-notes')} come from
-            the author&apos;s own GATE DA drill packs;{' '}
-            {sourceBadge('reference')} entries are standard textbook material
-            — verify them against your notes. Coverage is the full official
-            GATE 2026 syllabus topic list; core topics have full notes with
-            worked examples, narrower topics have concise notes.
-          </p>
-          {kbError && <div className="error">{kbError}</div>}
-          {kb && (
-            <>
+            <div style={{ marginTop: 18 }}>
+              <span className="field-label">Subject · {paper}</span>
               <div className="pills">
                 {subjects.map((s) => (
                   <button
                     key={s}
                     type="button"
-                    className={sheetSubject === s ? 'active' : ''}
-                    onClick={() => setSheetSubject(s)}
+                    className={subject === s ? 'active' : ''}
+                    onClick={() => setSubject(s)}
                   >
-                    {s} ({kb.summary[paper]?.subjects?.[s] ?? 0})
+                    {s}
                   </button>
                 ))}
               </div>
-              <ul className="sheet">
-                {sheetEntries.map((e) => (
-                  <li key={e.id}>
-                    <div className="sheet-head">
-                      <strong>{e.topic}</strong>{' '}
-                      <span>
-                        {sourceBadge(e.source)}{' '}
-                        {e.depth && (
-                          <span
-                            className={
-                              e.depth === 'full' ? 'depth-full' : 'depth-concise'
-                            }
-                          >
-                            {e.depth === 'full' ? 'In depth' : 'Concise'}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <code className="sheet-formula">{e.formula}</code>
-                    <p>{e.fact}</p>
-                    <p className="sheet-example">
-                      <em>Example:</em> {e.example}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              {sheetEntries.length === 0 && (
-                <p className="empty">
-                  No notes for this subject yet.
-                </p>
-              )}
-            </>
-          )}
-        </main>
-      )}
-
-      {tab === 'quiz' && (
-        <main className="card">
-          <h2 className="section-title">Quiz me — {paper}</h2>
-          <p className="section-sub">
-            Five multiple-choice questions built from the knowledge base for{' '}
-            {paperInfo.name} — match a formula to its topic, or a topic to
-            its formula. Instant feedback, score at the end.
-          </p>
-          {!quiz && (
-            <div className="row">
-              <label>
-                Subject ({paper})
-                <select
-                  value={quizSubject}
-                  onChange={(e) => setQuizSubject(e.target.value)}
-                >
-                  {subjects.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="ask quiz-start"
-                type="button"
-                onClick={startQuiz}
-                disabled={quizLoading}
-              >
-                {quizLoading ? 'Building quiz…' : 'Start quiz'}
-              </button>
             </div>
-          )}
-          {quizError && <div className="error">{quizError}</div>}
-          {quiz && !quizDone && (
-            <section className="quiz-q">
-              <p className="quiz-progress">
-                Question {quizIdx + 1} of {quiz.questions.length} · Score:{' '}
-                {score} · {quiz.questions[quizIdx].subject}
-              </p>
-              {quiz.pool_note && (
-                <p className="quiz-note">{quiz.pool_note}</p>
-              )}
-              <p className="quiz-prompt">
-                {quiz.questions[quizIdx].prompt.split('\n').map((l, i) => (
-                  <span key={i}>
-                    {l}
-                    <br />
+
+            <label className="q-label">
+              Your doubt
+              <textarea
+                rows={4}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="e.g. What is the difference between P(X ≤ 3) and P(X < 3) for a Binomial variable?"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask()
+                }}
+              />
+            </label>
+
+            <div className="examples">
+              <span>Try one:</span>
+              {EXAMPLES.map((ex) => (
+                <button
+                  key={ex.label}
+                  type="button"
+                  onClick={() => loadExample(ex)}
+                >
+                  {ex.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              className={`ask${loading ? ' loading' : ''}`}
+              type="button"
+              onClick={() => ask()}
+              disabled={loading || !question.trim()}
+            >
+              {loading && <span className="spinner" />}
+              {loading ? 'Thinking…' : '✦ Solve my doubt'}
+            </button>
+            <p className="hint">Tip: Ctrl/⌘ + Enter also asks.</p>
+
+            {error && <div className="error">{error}</div>}
+
+            {result && (
+              <section className="answer">
+                <h3>Here&apos;s your answer</h3>
+                <div className="badges">
+                  <span className={`mode mode-${result.mode}`}>
+                    {MODE_LABELS[result.mode] || result.mode}
                   </span>
-                ))}
-              </p>
-              <div className="quiz-options">
-                {quiz.questions[quizIdx].options.map((opt, i) => {
-                  const correct = quiz.questions[quizIdx].correct_index === i
-                  const isPicked = picked === i
-                  let cls = ''
-                  if (picked !== null) {
-                    if (correct) cls = 'correct'
-                    else if (isPicked) cls = 'wrong'
-                  }
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      className={cls}
-                      onClick={() => pickOption(i)}
-                      disabled={picked !== null}
-                    >
-                      {opt}
-                    </button>
-                  )
-                })}
-              </div>
-              {picked !== null && (
-                <div className="quiz-feedback">
-                  {picked === quiz.questions[quizIdx].correct_index ? (
-                    <p className="good">✓ Correct!</p>
-                  ) : (
-                    <p className="bad">
-                      ✗ Not quite — the right answer is:{' '}
-                      <strong>
-                        {quiz.questions[quizIdx].answer}
-                      </strong>
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className="ask"
-                    onClick={() => {
-                      setQuizIdx((i) => i + 1)
-                      setPicked(null)
-                    }}
-                  >
-                    {quizIdx + 1 === quiz.questions.length
-                      ? 'See my score'
-                      : 'Next question'}
-                  </button>
+                  {result.model && <span className="model">{result.model}</span>}
+                  {groundingBadge(result)}
                 </div>
-              )}
-            </section>
-          )}
-          {quiz && quizDone && (
-            <section className="quiz-done">
-              <h3>
-                Score: {score} / {quiz.questions.length}
-              </h3>
-              <p>
-                {score === quiz.questions.length
-                  ? 'Perfect — this subject is yours. 🎉'
-                  : score >= 3
-                    ? 'Solid. Re-read the ones you missed in the formula sheet.'
-                    : 'Keep drilling — the formula sheet for this subject is one tab away.'}
+                {result.warning && <div className="warn">{result.warning}</div>}
+                <div className="answer-body">{renderAnswer(result.answer)}</div>
+                {result.notes && result.notes.length > 0 && (
+                  <details className="notes">
+                    <summary>
+                      Grounding notes used ({result.notes.length})
+                    </summary>
+                    <ul>
+                      {result.notes.map((n) => (
+                        <li key={n.id}>
+                          <strong>{n.topic}</strong> {sourceBadge(n.source)}
+                          <br />
+                          {n.fact}
+                          <br />
+                          <code>{n.formula}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </section>
+            )}
+          </main>
+        )}
+
+        {tab === 'formulas' && (
+          <main className="card">
+            <h2 className="section-title">Formula sheet — {paper}</h2>
+            <p className="section-sub">
+              Every formula in the knowledge base for {paperInfo.name}, by
+              subject. Entries marked {sourceBadge('drill-notes')} come from
+              the author&apos;s own GATE DA drill packs;{' '}
+              {sourceBadge('reference')} entries are standard textbook material
+              — verify them against your notes. Coverage is the full official
+              GATE 2027 syllabus topic list; core topics have full notes with
+              worked examples, narrower topics have concise notes.
+            </p>
+            {kbError && <div className="error">{kbError}</div>}
+            {kb && (
+              <>
+                <div className="pills">
+                  {subjects.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={sheetSubject === s ? 'active' : ''}
+                      onClick={() => setSheetSubject(s)}
+                    >
+                      {s} ({kb.summary[paper]?.subjects?.[s] ?? 0})
+                    </button>
+                  ))}
+                </div>
+                <ul className="sheet">
+                  {sheetEntries.map((e, i) => (
+                    <li
+                      key={e.id}
+                      style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
+                    >
+                      <div className="sheet-head">
+                        <strong>{e.topic}</strong>{' '}
+                        <span className="badges-row">
+                          {sourceBadge(e.source)}{' '}
+                          {e.depth && (
+                            <span
+                              className={
+                                e.depth === 'full' ? 'depth-full' : 'depth-concise'
+                              }
+                            >
+                              {e.depth === 'full' ? 'In depth' : 'Concise'}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <code className="sheet-formula">{e.formula}</code>
+                      <p>{e.fact}</p>
+                      <p className="sheet-example">
+                        <em>Example:</em> {e.example}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {sheetEntries.length === 0 && (
+                  <p className="empty">
+                    No notes for this subject yet.
+                  </p>
+                )}
+              </>
+            )}
+          </main>
+        )}
+
+        {tab === 'quiz' && (
+          <main className="card">
+            <h2 className="section-title">Quiz me — {paper}</h2>
+            <p className="section-sub">
+              Five multiple-choice questions built from the knowledge base for{' '}
+              {paperInfo.name} — match a formula to its topic, or a topic to
+              its formula. Instant feedback, score at the end.
+            </p>
+            {!quiz && (
+              <div className="row">
+                <label>
+                  Subject ({paper})
+                  <select
+                    value={quizSubject}
+                    onChange={(e) => setQuizSubject(e.target.value)}
+                  >
+                    {subjects.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className={`ask quiz-start${quizLoading ? ' loading' : ''}`}
+                  type="button"
+                  onClick={startQuiz}
+                  disabled={quizLoading}
+                >
+                  {quizLoading && <span className="spinner" />}
+                  {quizLoading ? 'Building quiz…' : '▶ Start quiz'}
+                </button>
+              </div>
+            )}
+            {quizError && <div className="error">{quizError}</div>}
+            {quiz && !quizDone && (
+              <section className="quiz-q">
+                <div className="quiz-progress-wrap">
+                  <div
+                    className="quiz-progress-bar"
+                    style={{
+                      width: `${(quizIdx / quiz.questions.length) * 100}%`,
+                    }}
+                  />
+                </div>
+                <p className="quiz-progress">
+                  Question {quizIdx + 1} of {quiz.questions.length} · Score:{' '}
+                  {score} · {quiz.questions[quizIdx].subject}
+                </p>
+                {quiz.pool_note && (
+                  <p className="quiz-note">{quiz.pool_note}</p>
+                )}
+                <p className="quiz-prompt">
+                  {quiz.questions[quizIdx].prompt.split('\n').map((l, i) => (
+                    <span key={i}>
+                      {l}
+                      <br />
+                    </span>
+                  ))}
+                </p>
+                <div className="quiz-options">
+                  {quiz.questions[quizIdx].options.map((opt, i) => {
+                    const correct = quiz.questions[quizIdx].correct_index === i
+                    const isPicked = picked === i
+                    let cls = ''
+                    if (picked !== null) {
+                      if (correct) cls = 'correct'
+                      else if (isPicked) cls = 'wrong'
+                    }
+                    return (
+                      <button
+                        key={`${quizIdx}-${i}`}
+                        type="button"
+                        className={cls}
+                        onClick={() => pickOption(i)}
+                        disabled={picked !== null}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+                {picked !== null && (
+                  <div className="quiz-feedback">
+                    {picked === quiz.questions[quizIdx].correct_index ? (
+                      <p className="good">✓ Correct — nice one!</p>
+                    ) : (
+                      <p className="bad">
+                        ✗ Not quite — the right answer is:{' '}
+                        <strong>
+                          {quiz.questions[quizIdx].answer}
+                        </strong>
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="ask"
+                      onClick={() => {
+                        setQuizIdx((i) => i + 1)
+                        setPicked(null)
+                      }}
+                    >
+                      {quizIdx + 1 === quiz.questions.length
+                        ? 'See my score'
+                        : 'Next question →'}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+            {quiz && quizDone && (
+              <section className="quiz-done">
+                <ScoreCount value={score} total={quiz.questions.length} />
+                <h3>
+                  {score === quiz.questions.length
+                    ? 'Perfect score! 🎉'
+                    : score >= 3
+                      ? 'Solid work!'
+                      : 'Good start — keep drilling!'}
+                </h3>
+                <p>
+                  {score === quiz.questions.length
+                    ? 'Perfect — this subject is yours. 🎉'
+                    : score >= 3
+                      ? 'Solid. Re-read the ones you missed in the formula sheet.'
+                      : 'Keep drilling — the formula sheet for this subject is one tab away.'}
+                </p>
+                <button
+                  type="button"
+                  className="ask"
+                  onClick={() => {
+                    setQuiz(null)
+                    setPicked(null)
+                    setScore(0)
+                    setQuizIdx(0)
+                  }}
+                >
+                  ↺ Play again
+                </button>
+              </section>
+            )}
+          </main>
+        )}
+
+        {tab === 'history' && (
+          <main className="card">
+            <h2 className="section-title">Recent doubts</h2>
+            <p className="section-sub">
+              Your last {history.length} doubt{history.length === 1 ? '' : 's'},
+              saved in this browser. Click one to ask it again.
+            </p>
+            {history.length === 0 && (
+              <p className="empty">
+                <span className="empty-illo">💭</span>
+                No doubts yet — ask one from the Ask tab and it will show up
+                here.
               </p>
+            )}
+            <ul className="history">
+              {history.map((h, i) => (
+                <li key={`${h.ts}-${i}`} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                  <button type="button" onClick={() => reAsk(h)}>
+                    <span className="h-q">{h.question}</span>
+                    <span className="h-meta">
+                      {h.paper || 'DA'} · {h.subject} · {h.language} ·{' '}
+                      {new Date(h.ts).toLocaleString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {history.length > 0 && (
               <button
                 type="button"
-                className="ask"
+                className="clear-history"
                 onClick={() => {
-                  setQuiz(null)
-                  setPicked(null)
-                  setScore(0)
-                  setQuizIdx(0)
+                  localStorage.removeItem(HISTORY_KEY)
+                  setHistory([])
                 }}
               >
-                Play again
+                Clear history
               </button>
-            </section>
-          )}
-        </main>
-      )}
-
-      {tab === 'history' && (
-        <main className="card">
-          <h2 className="section-title">Recent doubts</h2>
-          <p className="section-sub">
-            Your last {history.length} doubt{history.length === 1 ? '' : 's'},
-            saved in this browser. Click one to ask it again.
-          </p>
-          {history.length === 0 && (
-            <p className="empty">
-              No doubts yet — ask one from the Ask tab and it will show up
-              here.
-            </p>
-          )}
-          <ul className="history">
-            {history.map((h, i) => (
-              <li key={`${h.ts}-${i}`}>
-                <button type="button" onClick={() => reAsk(h)}>
-                  <span className="h-q">{h.question}</span>
-                  <span className="h-meta">
-                    {h.paper || 'DA'} · {h.subject} · {h.language} ·{' '}
-                    {new Date(h.ts).toLocaleString()}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {history.length > 0 && (
-            <button
-              type="button"
-              className="clear-history"
-              onClick={() => {
-                localStorage.removeItem(HISTORY_KEY)
-                setHistory([])
-              }}
-            >
-              Clear history
-            </button>
-          )}
-        </main>
-      )}
+            )}
+          </main>
+        )}
+      </div>
 
       <footer>
         <p>
-          Knowledge base covers the full official GATE 2026 syllabus topic
+          Knowledge base covers the full official GATE 2027 syllabus topic
           list for all 30 papers plus General Aptitude. Core topics have
           full notes with worked examples; narrower topics have concise
           notes. Entries from the author&apos;s own drill packs are labelled

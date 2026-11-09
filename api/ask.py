@@ -1,13 +1,16 @@
 """Vercel serverless entry point for DoubtSahayak.
 
-POST /api/ask  {question, language, subject}  -> solver.solve(...)
+POST /api/ask  {question, language, subject, paper}  -> solver.solve(...)
 The BharatCode API key must be set as a Vercel environment variable
 BHARATCODE_API_KEY (never in code). Without it, the solver answers from
 the offline KB and says so — same behaviour as the local FastAPI backend.
 
-NOTE: this file is written for Vercel's Python runtime and has NOT been
-tested on a live Vercel deployment yet (no Vercel account used during the
-build). The local FastAPI backend (backend/app.py) is the verified path.
+NOTE: Vercel's Python runtime installs dependencies only from a
+requirements.txt in the PROJECT ROOT (backend/requirements.txt is not
+picked up). The root requirements.txt must list httpx (the only
+third-party import in backend/solver.py) or this function crashes at
+import time with FUNCTION_INVOCATION_FAILED. Fixed 9 Nov 2026 after the
+live deploy returned 500 on every /api/ask call, including GET.
 """
 import json
 import sys
@@ -41,6 +44,7 @@ class handler(BaseHTTPRequestHandler):
                 data.get("question", ""),
                 data.get("language", "English"),
                 data.get("subject", "Probability & Stats"),
+                data.get("paper", "DA"),
             )
             self._send(200, result)
         except ValueError as exc:

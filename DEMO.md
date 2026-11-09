@@ -5,8 +5,8 @@ For the hackathon demo video / live pitch. Total: ~2 minutes.
 ## 0:00–0:15 — The problem (show the landing page)
 > "GATE aspirants get stuck on doubts late at night — in Telugu, Hindi
 > or English — and a generic chatbot just makes up formulas. DoubtSahayak
-> answers from a knowledge base of 875 notes covering all 30 GATE papers
-> plus General Aptitude, built against the official GATE 2026 syllabus —
+> answers from a knowledge base of 933 notes covering all 30 GATE papers
+> plus General Aptitude, built against the official GATE 2027 syllabus —
 > so the formulas are the ones actually in the syllabus."
 
 ## 0:15–0:45 — Ask in English (click the English example)
@@ -36,8 +36,8 @@ one question.
 > all, it still answers from the notes offline — it tells you that too."
 
 ## 1:45–2:00 — Stack + close
-> "React frontend, FastAPI backend, 875-entry knowledge base from the
-> official GATE 2026 syllabus, BharatCode's free student API —
+> "React frontend, FastAPI backend, 933-entry knowledge base from the
+> official GATE 2027 syllabus, BharatCode's free student API —
 > qwen-3.8-27b, zero cost. DoubtSahayak: ask in your language, get an
 > answer you can trust."
 

@@ -3,22 +3,23 @@
 A multilingual GATE doubt solver for all 30 GATE papers + General
 Aptitude. Paste a doubt in **Telugu, Hindi or English**, pick a paper and
 subject, and get a short explanation + one worked example — **grounded in
-a knowledge base of 875 entries**, not a bare chat wrapper.
+a knowledge base of 933 entries**, not a bare chat wrapper.
 
 - **Frontend:** React (Vite), single-page UI with a GATE paper selector,
   language + subject selectors, formula sheet, quiz mode and doubt history.
 - **Backend:** FastAPI (`backend/app.py`), core logic in `backend/solver.py`.
-- **Grounding KB:** `backend/kb.json` — **875 entries** (631 full notes with
-  worked examples, 244 concise notes):
+- **Grounding KB:** `backend/kb.json` — **933 entries** (659 full notes with
+  worked examples, 274 concise notes):
   - **24 entries from the author's own GATE DA drill packs** (8 packs, Nov
     2026), labelled "Your GATE DA notes" in the UI. These are the only
     entries that are the author's own notes. The MGF/LLN/CLT drill pack was
     deliberately excluded — its topic was never verified.
-  - **851 standard reference entries**, researched from public sources
-    against the **official GATE 2026 syllabi** (IIT Guwahati,
-    gate2026.iitr.ac.in — note: GATE 2026 is run by IIT Guwahati, and the
-    official 30th paper is TF Textile, not RA; see "Coverage honesty"
-    below). Labelled "Standard reference" in the UI.
+  - **909 standard reference entries**, researched from public sources
+    against the **official GATE 2027 syllabi** (IIT Madras,
+    gate2027.iitm.ac.in). RA (Robotics & Automation) is a new GATE 2027
+    paper; TF (Textile Engineering & Fibre Science) is no longer a
+    standalone paper in 2027 — its topics live under XE section 9. Labelled
+    "Standard reference" in the UI.
 - **LLM:** BharatCode API, OpenAI-compatible chat completions
   (`https://bharatcode.ai/api/model/v1`), default model `qwen-3.8-27b`,
   fallback `deepseek-v4.1-flash`. Key comes from the `BHARATCODE_API_KEY`
@@ -26,7 +27,7 @@ a knowledge base of 875 entries**, not a bare chat wrapper.
 
 ## Coverage honesty (read this before trusting a number)
 
-- The KB covers the **full official GATE 2026 syllabus topic list** for
+- The KB covers the **full official GATE 2027 syllabus topic list** for
   all 30 papers in the app (AE, AG, AR, BM, BT, CE, CH, CS, CY, DA, EC,
   EE, ES, EY, GE, GG, IN, MA, ME, MN, MT, NM, PE, PH, PI, RA, ST, XE, XH,
   XL) plus General Aptitude (GA, the common 15-mark section).
@@ -43,16 +44,42 @@ a knowledge base of 875 entries**, not a bare chat wrapper.
   international/public economics detail; XE polymer processing and ocean
   sciences detail. The full list of leftovers is in each gap batch's notes;
   they are real syllabus items and the natural next batch.
-- **RA is not an official GATE 2026 paper** — the official 30th paper is
-  TF (Textile Engineering & Fibre Science), which has no entries here
-  because it was not in the requested list. RA entries follow a standard
-  robotics & automation syllabus instead.
+- **RA is a new GATE 2027 paper** (Robotics & Automation) — its entries
+  follow the official GATE 2027 RA syllabus (Part A + optional Part B1
+  Electrical / B2 Mechanical). **TF is not a standalone
+  GATE 2027 paper** — from 2027, Textile Engineering & Fibre Science
+  topics are XE section 9, and the KB covers them under XE ("XE9 Textile
+  Engineering & Fibre Science", 14 entries across XE9.1–XE9.5).
+- **GATE 2027 reconciliation (9 Nov 2026):** the KB was reconciled entry
+  by entry against the official GATE 2027 syllabus PDFs (IIT Madras).
+  DA and EE are **unchanged** vs 2026 (DA verified by reading the official
+  DA PDF). CS, ME, EC and CE were **revised**: CS gained Karnaugh-map /
+  Quine-McCluskey minimisation and dropped ARP, DHCP, ICMP, SMTP, FTP and
+  secondary-storage/magnetic-disk entries (NAT/CIDR/fragmentation and
+  DNS/HTTP/socket-API kept); ME gained 14 entries (2-DOF vibration,
+  damping estimation, transmissibility, PID/transfer function, compressible
+  flow and nozzles, velocity potential, boiling/condensation, pump
+  characteristics, additive manufacturing, non-traditional machining,
+  solid-state welding, NDT, powder metallurgy, ASA/ORS tool geometry,
+  Six Sigma/Lean, air-fuel ratio) and dropped Heisler charts; EC gained
+  correlation/regression, FIR/IIR filter design, MOSFET scaling, Miller
+  compensation/phase margin, PID control and source coding; CE gained a
+  standalone Section 8 (Construction Materials and Management), virtual
+  work/Castigliano, sheet piles, ground improvement, streamflow
+  measurement, weirs/river training, earthen dams, tertiary wastewater
+  treatment, GNSS/geodetic/digital photogrammetry and well irrigation; the
+  KB's plate-girder, flexibility-method and sampling-theorem content was
+  removed, and prestressed concrete (listed as removed in 2027) was never
+  in the KB. RA gained 13 entries for the official Part A.2/B1/B2
+  topics (network theorems, op-amps, transforms, transfer functions/Bode,
+  PID, Mohr's circle, torsion/bending, Euler buckling, gear trains, SDOF
+  vibration, fatigue/S-N, homogeneous transforms, Python data structures).
 - DA is the deepest paper (112 entries, incl. the 24 drill-notes entries);
-  other papers have 18–56 entries each. Per-paper counts:
-  AE 23, AG 18, AR 18, BM 33, BT 18, CE 28, CH 30, CS 56, CY 19, DA 112,
-  EC 33, EE 34, ES 18, EY 18, GA 9, GE 21, GG 23, IN 33, MA 35, ME 36,
-  MN 20, MT 22, NM 20, PE 22, PH 38, PI 29, RA 20, ST 31, XE 22, XH 18,
-  XL 18. Total 875.
+  other papers have 18–57 entries each. Per-paper counts:
+  AE 23, AG 18, AR 18, BM 33, BT 18, CE 38, CH 30, CS 57, CY 19, DA 112,
+  EC 39, EE 34, ES 18, EY 18, GA 9, GE 21, GG 23, IN 33, MA 35, ME 50,
+  MN 20, MT 22, NM 20, PE 22, PH 38, PI 29, RA 33, ST 31, XE 36, XH 18,
+  XL 18. Total 933.
 
 ## Features
 
@@ -157,13 +184,13 @@ judges.
 ```
 doubtsahayak/
 ├── BharatCode.txt          # required for submission — keep in repo root
-├── README.md  DEMO.md  .env.example  vercel.json
+├── README.md  DEMO.md  .env.example  vercel.json  requirements.txt  # root requirements.txt: httpx only, for Vercel serverless
 ├── package.json  vite.config.js  index.html
 ├── src/                    # React frontend (App.jsx, App.css, main.jsx)
 ├── backend/
 │   ├── app.py              # FastAPI server (local dev)
 │   ├── solver.py           # retrieval + BharatCode call + offline fallback + quiz
-│   ├── kb.json             # 875 grounded KB entries (24 drill-notes + 851 reference)
+│   ├── kb.json             # 933 grounded KB entries (24 drill-notes + 909 reference)
 │   └── requirements.txt
 └── api/
     ├── ask.py              # Vercel serverless function (same solver)
@@ -179,11 +206,26 @@ doubtsahayak/
   subscription_required; a community-request form / email to
   contact@bharatcode.ai was pending the user's choice). The live path is
   code-complete but untested until the key works.
-- **Not deployed** — no Vercel project, no live URL yet.
-- **Not on GitHub** — no repo created, nothing pushed (user's step).
+- **On GitHub** — public repo https://github.com/rxp017/DoubtSahayak
+  (pushed 9 Nov 2026, main branch). Live at
+  https://doubt-sahayak.vercel.app/ (Vercel project created from the repo).
+- **Live deploy was broken at last check (9 Nov 2026)** — `/api/ask`
+  returned FUNCTION_INVOCATION_FAILED (500) on every call, including GET.
+  Diagnosis: `api/ask.py` imports `backend.solver`, which imports `httpx`,
+  but Vercel's Python runtime only installs from a `requirements.txt` in
+  the project root, and the project had only `backend/requirements.txt` —
+  so `httpx` was missing in the serverless environment. Fixed locally the
+  same day: project-root `requirements.txt` with `httpx==0.28.1`, plus
+  `api/ask.py` now forwards the `paper` field to `solve()` (it was silently
+  defaulting every ask to DA). Fix verified locally in a fresh venv with
+  only the root requirements installed — **not yet verified on live Vercel;
+  needs a redeploy + live check** (parent's step, not done here).
 - **Not registered** — the hackathon registration is the user's step
   (account created 9 Nov 2026; Build League spot saved).
 - **KB coverage is broad, not exam-complete** — see "Coverage honesty"
   above for the known gaps.
-- **Vercel serverless functions untested on live Vercel** — local FastAPI
-  backend is the verified path.
+- **Vercel serverless functions tested locally only** — all four handlers
+  import and answer correctly in a fresh venv with only the project-root
+  `requirements.txt` installed (GET + POST checks pass, see above); live
+  Vercel verification still pending after redeploy. Local FastAPI backend
+  is the verified path.
