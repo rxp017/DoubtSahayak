@@ -6,42 +6,40 @@ Added 12 Nov 2026, **after** the BharatCode Build League submission
 deadline (10 Nov 2026, 11:59 PM IST) — this integration is an
 after-submission improvement, not part of the submitted entry.
 
-## Status (honest, as of 12 Nov 2026, ~09:00 IST)
+## Status (honest, as of 12 Nov 2026, ~10:00 IST)
 
 - **Training dataset: DONE** — 3,112 examples, ready to upload
   (`training-data.csv` for Adaption's raw upload, `training-data.jsonl`
   with full metadata).
-- **Training run: NOT STARTED — blocked.** There is no Adaption account
-  or API key for the owner yet. Claiming the 1,000 free Build League
-  credits needs the owner to create an Adaption account (sign-up on
-  adaptionlabs.ai with his email/Google) and create an API key. No
-  BharatCode-specific claim link or code was found anywhere — plain
-  sign-up. No model has been trained, no job ID exists, no credits used.
-  Nothing here is faked: the app code below is real and tested, but the
-  tuned model itself does not exist yet.
-- **App integration: DONE (code), UNVERIFIED live.** The Adaption engine
-  is wired into `backend/solver.py`, `api/ask.py`, `backend/app.py` and
-  the frontend toggle. It has been tested for its fallback behaviour
-  (no key → falls back to BharatCode and says so). A live call to the
-  tuned model can only be tested after the owner trains and deploys it.
+- **Training run: DONE — succeeded 12 Nov 2026.** AutoScientist run
+  `206fe3ca-f5ae-448e-8d9e-e15ca80b0290`, dataset
+  `a0ec07b9-fc0d-4e08-8f2c-064c20a854f9` (3,112 rows, status succeeded),
+  base model `google/gemma-3-4b-pt`, best win rate **0.545**. Free
+  credits only — no money spent, no payment details entered anywhere.
+  Best checkpoint downloaded to `adaption/best-checkpoint.tgz` (local
+  only, not in the repo); full record in `adaption/training-run.json`.
+  Two sandbox workarounds were needed and are now in `train.py`: the
+  bracketed-IPv6 NO_PROXY entries crash httpx at client construction,
+  and the SDK's httpx S3 PUT stalls — the file upload now goes through
+  curl (200 in ~2s).
+- **App integration: DONE (code), model trained but NOT deployed.**
+  The Adaption engine is wired into `backend/solver.py`, `api/ask.py`,
+  `backend/app.py` and the frontend toggle. It has been tested for its
+  fallback behaviour (no key → falls back to BharatCode and says so).
+  A live call to the tuned model needs the checkpoint deployed first
+  (Together dedicated endpoint, billed per GPU-hour — check the cost
+  and get the owner's word before deploying).
 
-## What to do next (owner only — needs his sign-in)
+## What to do next (owner decision needed — deployment only)
 
-1. Create an account at https://adaptionlabs.ai (sign up with
-   24e51a6645@hitam.org or Google). The Build League gives every
-   participant 1,000 free Adaption credits — check the account/credits
-   page to confirm they are there before training.
-2. In Settings → API keys, create an API key (shown once only — copy it).
-3. Install the SDK and run the training script from the repo root:
-   ```
-   pip install "adaption>=0.7.0"
-   ADAPTION_API_KEY=<key> python3 adaption/train.py
-   ```
-   It uploads `training-data.csv`, starts an AutoScientist run, waits for
-   completion, prints the job ID / base model / best win rate, and
-   downloads the best checkpoint to `adaption/best-checkpoint.tgz`.
-   It records everything in `adaption/training-run.json`.
-4. Deploy the checkpoint for inference. Adaption trains on Together AI
+1. ~~Create an account at https://adaptionlabs.ai~~ — **done 12 Nov
+   2026** (Google sign-in, 24e51a6645@hitam.org, 1,250 credits balance).
+2. ~~Create an API key and run `adaption/train.py`~~ — **done 12 Nov
+   2026** (run `206fe3ca`, `google/gemma-3-4b-pt`, win rate 0.545).
+   To re-run training from scratch: `adaption/.venv/bin/python
+   adaption/train.py` with `ADAPTION_API_KEY` set (the script now
+   uploads via curl — the SDK's httpx S3 PUT stalls from this sandbox).
+3. Deploy the checkpoint for inference. Adaption trains on Together AI
    infrastructure; a fine-tuned model is served from Together's
    OpenAI-compatible inference endpoint
    (`https://api-inference.together.ai/v1`) as a dedicated endpoint.
@@ -129,5 +127,5 @@ Hindi concept 9. Zero duplicate instructions.
 - `training-data.csv` — `instruction,response` only, for Adaption's raw upload
 - `train.py` — uploads the CSV and runs AutoScientist (needs
   `ADAPTION_API_KEY`; exits with a clear message without it)
-- `training-run.json` — written by `train.py` when a run completes
-  (does not exist yet — no run has happened)
+- `training-run.json` — run record (run `206fe3ca`, base model
+  `google/gemma-3-4b-pt`, best win rate 0.545, completed 12 Nov 2026)

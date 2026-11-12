@@ -119,13 +119,19 @@ Added 12 Nov 2026 — **after** the Build League submission deadline
 (10 Nov 2026, 11:59 PM IST), so this is an after-submission improvement,
 not part of the submitted entry. Full detail: [`adaption/README.md`](adaption/README.md).
 
-- **What was trained:** nothing yet — **no model has been trained**.
-  Training is blocked on the owner creating an Adaption account and API
-  key (the 1,000 free Build League credits are claimed at sign-up on
-  adaptionlabs.ai; no BharatCode-specific claim link was found). No job
-  ID, no base model, no credits used. The training script
-  (`adaption/train.py`) is ready and exits with a clear message without
-  a key — it never fakes a run.
+- **What was trained:** a model **was trained on 12 Nov 2026** with
+  Adaption AutoScientist on the 3,112-example dataset (free credits
+  only — no money spent). Training run
+  `206fe3ca-f5ae-448e-8d9e-e15ca80b0290`, dataset
+  `a0ec07b9-fc0d-4e08-8f2c-064c20a854f9`, base model
+  `google/gemma-3-4b-pt`, best win rate **0.545**, status **succeeded**.
+  Best checkpoint downloaded to `adaption/best-checkpoint.tgz`
+  (local only, not in the repo). Full record:
+  `adaption/training-run.json`. The model is trained but **not yet
+  deployed for inference** — the app's Adaption mode still falls back
+  to BharatCode Qwen until the checkpoint is deployed (Together
+  dedicated endpoint, billed per GPU-hour — deployment needs the
+  owner's word first).
 - **Dataset:** 3,112 examples in `adaption/training-data.csv` (+ JSONL
   with metadata), built by `adaption/build_dataset.py` from the 933 KB
   entries plus 32 verified web-sourced GATE previous-year questions
@@ -157,7 +163,7 @@ maximum efficiency?" (ME, Thermodynamics, English)
 | Engine | Answer (as observed) |
 |---|---|
 | BharatCode Qwen (`qwen-3.8-27b`, live) | "For a Carnot engine, the **maximum efficiency** depends only on the reservoir temperatures: η = 1 − Tc/Th … **Worked example:** Given Th = 600 K, Tc = 300 K, η = 1 − 300/600 = 0.5, i.e. 50%." (mode `bharatcode`, grounded, reference warning shown) |
-| Adaption-tuned | **Not trained yet** — no model exists, so no Adaption answer can be shown. The integration code was verified against a mock Together endpoint (mode `adaption`, model name shown in the badge) and its fallback was verified live: with no Adaption key set, `engine=adaption` fell back to BharatCode Qwen and the warning said so. |
+| Adaption-tuned | **Trained, not deployed yet** — the model exists (run `206fe3ca`, `google/gemma-3-4b-pt`, win rate 0.545) but is not serving, so no live Adaption answer can be shown yet. The integration code was verified against a mock Together endpoint (mode `adaption`, model name shown in the badge) and its fallback was verified live: with no Adaption key set, `engine=adaption` fell back to BharatCode Qwen and the warning said so. |
 
 Same fallback verified for quicksort worst-case (CS, Algorithms):
 `engine=adaption` → mode `bharatcode`, model `qwen-3.8-27b`,
@@ -260,9 +266,11 @@ doubtsahayak/
   10 Nov 2026; `/api/ask` answers live in mode `bharatcode`
   (model `qwen-3.8-27b`). Re-verified locally 12 Nov 2026 (Carnot and
   quicksort questions, both grounded, correct answers). The Adaption
-  engine is code-complete and fallback-verified, but **no Adaption
-  model has been trained yet** — see "Model training with Adaption"
-  above; it needs the owner's Adaption account + API key.
+  engine is code-complete and fallback-verified, and the model **has
+  been trained** (run `206fe3ca`, `google/gemma-3-4b-pt`, win rate
+  0.545, 12 Nov 2026) — see "Model training with Adaption" above. It
+  is not yet deployed for inference, so the Adaption mode still falls
+  back to BharatCode Qwen.
 - **On GitHub** — public repo https://github.com/rxp017/DoubtSahayak
   (pushed 9 Nov 2026, main branch). Live at
   https://doubt-sahayak.vercel.app/ (Vercel project created from the repo).

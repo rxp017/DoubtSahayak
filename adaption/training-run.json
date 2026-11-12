@@ -1,0 +1,13 @@
+{
+  "run_id": "206fe3ca-f5ae-448e-8d9e-e15ca80b0290",
+  "dataset_id": "a0ec07b9-fc0d-4e08-8f2c-064c20a854f9",
+  "dataset_file": "adaption/training-data.csv",
+  "dataset_rows": 3112,
+  "base_model": "google/gemma-3-4b-pt",
+  "best_win_rate": 0.545,
+  "status": "completed",
+  "started_at_utc": "2026-11-12T03:23:05+00:00",
+  "finished_at_utc": "2026-11-12T04:23:58.160560+00:00",
+  "checkpoint": "adaption/best-checkpoint.tgz",
+  "credits_used": null
+}

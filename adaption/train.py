@@ -32,6 +32,7 @@ and never deploys anything — serving the model (Together dedicated
 endpoint, billed per GPU-hour) is a separate, manual step; see
 adaption/README.md before deploying.
 """
+import contextlib
 import json
 import os
 import sys
@@ -66,6 +67,57 @@ def _clean_no_proxy() -> None:
         os.environ[key] = ",".join(kept)
 
 
+def _upload_file_curl(client, csv_path: Path) -> str:
+    """Upload the CSV via the SDK create + curl PUT + SDK complete.
+
+    The SDK's own upload_file() PUTs the file with httpx, which stalls
+    with a WriteTimeout from this sandbox (the egress proxy + httpx
+    chunked streaming). The same presigned S3 PUT via curl succeeds in
+    ~2s, so the file transfer goes through curl and everything else
+    stays on the SDK. On failure the half-created dataset is deleted,
+    mirroring the SDK's own cleanup.
+    """
+    import hashlib
+    import subprocess
+
+    dataset_id = None
+    try:
+        resp = client.datasets.create(source={
+            "file_format": "csv",
+            "name": csv_path.stem,
+            "processing_mode": "raw",
+            "column_mapping": {"prompt": "instruction", "completion": "response"},
+        })
+        dataset_id = resp.dataset_id
+        url = resp.upload_instructions.url
+        print(f"Dataset created: id={dataset_id}")
+        file_bytes = csv_path.read_bytes()
+        print(f"Uploading {csv_path} ({len(file_bytes)} bytes) via curl ...")
+        curl = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+             "--max-time", "600", "-X", "PUT", "--data-binary",
+             f"@{csv_path}", "-H", "Content-Type: text/csv", url],
+            capture_output=True, text=True, timeout=660,
+        )
+        if curl.returncode != 0 or curl.stdout.strip() != "200":
+            raise RuntimeError(
+                f"curl S3 PUT failed: returncode={curl.returncode} "
+                f"http={curl.stdout.strip()} stderr={curl.stderr[:300]}"
+            )
+        print("S3 PUT done (HTTP 200).")
+        sha256 = hashlib.sha256(file_bytes).hexdigest()
+        client.datasets.upload.complete_by_id(
+            dataset_id, file_size_bytes=len(file_bytes), sha256=sha256
+        )
+        print("Upload completed.")
+        return dataset_id
+    except BaseException:
+        if dataset_id:
+            with contextlib.suppress(Exception):
+                client.datasets.delete(dataset_id)
+        raise
+
+
 def main() -> None:
     api_key = os.environ.get("ADAPTION_API_KEY", "").strip()
     if not api_key:
@@ -86,15 +138,13 @@ def main() -> None:
     except ImportError:
         fail('The Adaption SDK is not installed. Run: pip install "adaption>=0.7.0"')
 
-    client = Adaption()  # reads ADAPTION_API_KEY from the environment
+    # Long per-request timeout: the upload + AutoScientist calls can be
+    # slow, and the SDK default (60s) timed out twice on 12 Nov 2026
+    # even though the API itself answers in ~1s when healthy.
+    client = Adaption(timeout=300.0)  # reads ADAPTION_API_KEY from the environment
     started = datetime.now(timezone.utc).isoformat()
     print(f"[{started}] Uploading {CSV_PATH} ...")
-    dataset = client.datasets.upload_file(
-        str(CSV_PATH),
-        processing_mode="raw",
-        column_mapping={"prompt": "instruction", "completion": "response"},
-    )
-    dataset_id = getattr(dataset, "id", None) or dataset.get("id")
+    dataset_id = _upload_file_curl(client, CSV_PATH)
     print(f"Dataset uploaded: id={dataset_id}")
     print("Waiting for the dataset to be processed ...")
     status = client.datasets.get_status(dataset_id)
