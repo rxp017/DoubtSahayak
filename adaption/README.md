@@ -26,9 +26,29 @@ after-submission improvement, not part of the submitted entry.
   The Adaption engine is wired into `backend/solver.py`, `api/ask.py`,
   `backend/app.py` and the frontend toggle. It has been tested for its
   fallback behaviour (no key → falls back to BharatCode and says so).
-  A live call to the tuned model needs the checkpoint deployed first
-  (Together dedicated endpoint, billed per GPU-hour — check the cost
-  and get the owner's word before deploying).
+
+## Serving the model for $0 (Modal free tier)
+
+Decision 12 Nov 2026, after checking every route: **Modal Starter**
+is the only zero-real-money way to serve this adapter. Full detail:
+[`MODAL_DEPLOY.md`](MODAL_DEPLOY.md); serving code:
+[`modal_serve.py`](modal_serve.py) (vLLM OpenAI-compatible server,
+base `google/gemma-3-4b-pt` + LoRA, L4 GPU, scale-to-zero).
+
+- **Together AI dedicated endpoint:** $5.49/hr H100, billed while
+  idle (~$132/day), no free trial, prepaid required. Rejected.
+- **Fireworks serverless LoRA:** only GLM 5.3 Flash is supported;
+  gemma-3-4b-pt adapters can't load. Rejected.
+- **Hugging Face ZeroGPU:** free but 5 GPU-min/day, Gradio-only,
+  30-day-old account required — a demo, not a serving route. Rejected.
+- **Adaption credits:** no inference product exists (docs + SDK are
+  training-only), so the 1,250 credits can't pay for serving. Rejected.
+
+Deployment is **pending owner steps**: Modal account + token, Hugging
+Face account + Gemma license + token, then `modal deploy
+adaption/modal_serve.py` and the three Vercel env vars in
+MODAL_DEPLOY.md. No app code change is needed — the solver already
+posts OpenAI-style chat completions to `{ADAPTION_BASE_URL}/chat/completions`.
 
 ## What to do next (owner decision needed — deployment only)
 
