@@ -28,6 +28,23 @@ BHARATCODE_BASE = "https://bharatcode.ai/api/model/v1"
 DEFAULT_MODEL = os.environ.get("BHARATCODE_MODEL", "qwen-3.8-27b")
 FALLBACK_MODEL = "deepseek-v4.1-flash"
 
+# Adaption (12 Nov 2026): a second answer engine — a model fine-tuned on
+# the GATE knowledge base (adaption/training-data.jsonl, 3,112 examples)
+# via Adaption Labs. Adaption trains on Together AI infrastructure and its
+# checkpoints are served through Together's OpenAI-compatible inference
+# endpoint, so the app calls the tuned model there. Both values come from
+# environment variables only (ADAPTION_API_KEY, ADAPTION_MODEL); the key
+# is never in code. If either is missing, the Adaption engine is
+# unavailable and solve() falls back to BharatCode, saying so in the
+# warning — it never pretends the tuned model answered.
+# NOTE: training is covered by the 1,000 free Adaption credits, but
+# SERVING a fine-tuned model on Together needs a dedicated endpoint,
+# billed per GPU-hour — check the Adaption/Together dashboard before
+# deploying, and do not pay anything without the owner's word.
+ADAPTION_BASE_URL = os.environ.get(
+    "ADAPTION_BASE_URL", "https://api-inference.together.ai/v1"
+)
+
 STOPWORDS = {
     "what", "is", "the", "a", "an", "and", "or", "of", "in", "on", "for",
     "to", "how", "do", "does", "find", "calculate", "solve", "explain",
@@ -305,6 +322,34 @@ def generate_quiz(paper: str = "DA", subject: str | None = None, n: int = 5,
     }
 
 
+def _clean_no_proxy():
+    """Context manager: httpx rejects this sandbox runtime's bracketed
+    IPv6 entries in NO_PROXY ([::1], [fd8b:...]) at Client() construction
+    (InvalidURL: Invalid port), which broke BOTH the BharatCode and the
+    Adaption calls locally — they fell back to offline-kb silently.
+    Temporarily drop just the bracketed entries; localhost, 127.0.0.1
+    and unbracketed ::1 still bypass the proxy. No-op on Vercel, where
+    no such entries exist. Restores the original values afterwards."""
+    import contextlib
+
+    keys = [k for k in ("no_proxy", "NO_PROXY") if k in os.environ]
+    saved = {k: os.environ[k] for k in keys}
+
+    @contextlib.contextmanager
+    def _cm():
+        try:
+            for k in keys:
+                os.environ[k] = ",".join(
+                    h for h in saved[k].split(",") if not h.startswith("[")
+                )
+            yield
+        finally:
+            for k, v in saved.items():
+                os.environ[k] = v
+
+    return _cm()
+
+
 def _call_bharatcode(prompt: str, api_key: str) -> tuple[str, str]:
     """One chat-completions call; retries once with the fallback model on a
     model error. Returns (answer_text, model_used). Raises on failure."""
@@ -335,7 +380,7 @@ def _call_bharatcode(prompt: str, api_key: str) -> tuple[str, str]:
         "temperature": 0.3,
         "max_tokens": 800,
     }
-    with httpx.Client(timeout=60.0) as client:
+    with _clean_no_proxy(), httpx.Client(timeout=60.0) as client:
         resp = client.post(
             f"{BHARATCODE_BASE}/chat/completions", json=payload, headers=headers
         )
@@ -350,8 +395,66 @@ def _call_bharatcode(prompt: str, api_key: str) -> tuple[str, str]:
         return data["choices"][0]["message"]["content"].strip(), model_used
 
 
+def _call_adaption(prompt: str, api_key: str, model: str) -> tuple[str, str]:
+    """One chat-completions call to the Adaption-tuned model, served via
+    Together AI's OpenAI-compatible inference endpoint (Adaption trains on
+    Together infrastructure). Returns (answer_text, model_used). Raises on
+    failure — the caller falls back to BharatCode."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are DoubtSahayak, a study-doubt solver for students "
+                    "preparing for GATE. You were fine-tuned on a curated "
+                    "GATE knowledge base (3,100+ notes across all 30 GATE "
+                    "papers + General Aptitude, plus real previous-year "
+                    "questions). Give a SHORT explanation plus ONE worked "
+                    "example. Use the grounding notes given when they are "
+                    "relevant. Notes tagged AUTHOR'S DRILL NOTES come from "
+                    "the student's own verified study notes — trust them "
+                    "over general knowledge. Notes tagged STANDARD REFERENCE "
+                    "are textbook material, not the student's own notes. If "
+                    "no grounding note covers the doubt, say so in one line "
+                    "and answer carefully — never invent a formula. Keep the "
+                    "whole answer under 250 words."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.3,
+        "max_tokens": 800,
+    }
+    with _clean_no_proxy(), httpx.Client(timeout=60.0) as client:
+        resp = client.post(
+            f"{ADAPTION_BASE_URL}/chat/completions", json=payload, headers=headers
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        model_used = data.get("model") or model
+        return data["choices"][0]["message"]["content"].strip(), model_used
+
+
+def _grounding_warning(gsource: str) -> str | None:
+    if gsource == "drill-notes":
+        return None
+    if gsource == "reference":
+        return ("Grounded in standard reference material — not your own "
+                "drill notes. Verify this answer against your notes.")
+    if gsource == "mixed":
+        return ("Grounded in your drill notes and standard reference "
+                "material — the reference parts need verification.")
+    return ("No grounding note covered this doubt — "
+            "this answer is LLM-only, please verify it against your notes.")
+
+
 def solve(question: str, language: str = "English", subject: str = "Probability & Stats",
-          paper: str = "DA") -> dict:
+          paper: str = "DA", engine: str = "bharatcode") -> dict:
     question = (question or "").strip()
     if not question:
         raise ValueError("Question is empty.")
@@ -368,29 +471,8 @@ def solve(question: str, language: str = "English", subject: str = "Probability 
     grounded = bool(notes)
     gsource = grounding_source(notes)
     lang_note = LANGUAGE_INSTRUCTIONS[language]
-
-    api_key = os.environ.get("BHARATCODE_API_KEY", "").strip()
-    if not api_key:
-        warning = (
-            "No BHARATCODE_API_KEY is set, so this answer came only from "
-            "the knowledge base — no LLM was called."
-            if grounded else
-            "No BHARATCODE_API_KEY is set and no grounding note covers "
-            "this doubt. Set the free student API key to get a full answer."
-        )
-        if grounded and gsource in ("reference", "mixed"):
-            warning += (" These notes are standard reference material, not "
-                        "your own drill notes — verify them against your notes.")
-        return {
-            "answer": _offline_answer(question, notes, language),
-            "mode": "offline-kb",
-            "model": None,
-            "grounded": grounded,
-            "grounding_source": gsource,
-            "paper": paper,
-            "notes": notes,
-            "warning": warning,
-        }
+    if engine not in ("bharatcode", "adaption"):
+        engine = "bharatcode"
 
     if notes:
         prompt = (
@@ -408,9 +490,77 @@ def solve(question: str, language: str = "English", subject: str = "Probability 
             f"Say that in one line, then answer carefully with a short "
             f"explanation and one worked example."
         )
+
+    # Adaption engine (only when requested): try the tuned model first.
+    # Any problem — not configured, or the call fails — falls through to
+    # the BharatCode path below, and the warning says so. The returned
+    # mode always reports what actually answered.
+    adaption_note = None
+    if engine == "adaption":
+        adaption_key = os.environ.get("ADAPTION_API_KEY", "").strip()
+        adaption_model = os.environ.get("ADAPTION_MODEL", "").strip()
+        if not adaption_key or not adaption_model:
+            adaption_note = (
+                "Adaption-tuned model is not deployed yet (ADAPTION_API_KEY "
+                "/ ADAPTION_MODEL are not set), so this answer came from the "
+                "BharatCode model instead."
+            )
+        else:
+            try:
+                answer, model_used = _call_adaption(
+                    prompt, adaption_key, adaption_model
+                )
+                return {
+                    "answer": answer,
+                    "mode": "adaption",
+                    "model": model_used,
+                    "grounded": grounded,
+                    "grounding_source": gsource,
+                    "paper": paper,
+                    "notes": notes,
+                    "warning": _grounding_warning(gsource),
+                }
+            except Exception as exc:  # noqa: BLE001 — fall back, don't crash
+                adaption_note = (
+                    f"Adaption model call failed ({exc}); fell back to the "
+                    "BharatCode model."
+                )
+
+    api_key = os.environ.get("BHARATCODE_API_KEY", "").strip()
+    if not api_key:
+        warning = (
+            "No BHARATCODE_API_KEY is set, so this answer came only from "
+            "the knowledge base — no LLM was called."
+            if grounded else
+            "No BHARATCODE_API_KEY is set and no grounding note covers "
+            "this doubt. Set the free student API key to get a full answer."
+        )
+        if adaption_note:
+            warning = f"{adaption_note} {warning}"
+        if grounded and gsource in ("reference", "mixed"):
+            warning += (" These notes are standard reference material, not "
+                        "your own drill notes — verify them against your notes.")
+        return {
+            "answer": _offline_answer(question, notes, language),
+            "mode": "offline-kb",
+            "model": None,
+            "grounded": grounded,
+            "grounding_source": gsource,
+            "paper": paper,
+            "notes": notes,
+            "warning": warning,
+        }
+
     try:
         answer, model_used = _call_bharatcode(prompt, api_key)
     except httpx.HTTPStatusError as exc:
+        warning = (
+            f"BharatCode API call failed (HTTP {exc.response.status_code}). "
+            "Showing the offline KB answer instead — check the API key and "
+            "try again."
+        )
+        if adaption_note:
+            warning = f"{adaption_note} {warning}"
         return {
             "answer": _offline_answer(question, notes, language),
             "mode": "error-fallback-kb",
@@ -419,13 +569,13 @@ def solve(question: str, language: str = "English", subject: str = "Probability 
             "grounding_source": gsource,
             "paper": paper,
             "notes": notes,
-            "warning": (
-                f"BharatCode API call failed (HTTP {exc.response.status_code}). "
-                "Showing the offline KB answer instead — check the API key and "
-                "try again."
-            ),
+            "warning": warning,
         }
     except Exception as exc:  # network down, timeout, bad JSON, ...
+        warning = (f"BharatCode API call failed ({exc}). Showing the "
+                   "offline KB answer instead.")
+        if adaption_note:
+            warning = f"{adaption_note} {warning}"
         return {
             "answer": _offline_answer(question, notes, language),
             "mode": "error-fallback-kb",
@@ -434,20 +584,12 @@ def solve(question: str, language: str = "English", subject: str = "Probability 
             "grounding_source": gsource,
             "paper": paper,
             "notes": notes,
-            "warning": f"BharatCode API call failed ({exc}). Showing the offline KB answer instead.",
+            "warning": warning,
         }
 
-    if gsource == "drill-notes":
-        warning = None
-    elif gsource == "reference":
-        warning = ("Grounded in standard reference material — not your own "
-                   "drill notes. Verify this answer against your notes.")
-    elif gsource == "mixed":
-        warning = ("Grounded in your drill notes and standard reference "
-                   "material — the reference parts need verification.")
-    else:
-        warning = ("No grounding note covered this doubt — "
-                   "this answer is LLM-only, please verify it against your notes.")
+    warning = _grounding_warning(gsource)
+    if adaption_note:
+        warning = f"{adaption_note} {warning or ''}".strip()
     return {
         "answer": answer,
         "mode": "bharatcode",

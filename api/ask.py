@@ -45,6 +45,7 @@ class handler(BaseHTTPRequestHandler):
                 data.get("language", "English"),
                 data.get("subject", "Probability & Stats"),
                 data.get("paper", "DA"),
+                data.get("engine", "bharatcode"),
             )
             self._send(200, result)
         except ValueError as exc:

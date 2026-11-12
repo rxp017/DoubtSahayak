@@ -423,6 +423,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .badges span { font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
 .mode-bharatcode { background: var(--green-bg); color: var(--green); }
+.mode-adaption { background: #ede9fe; color: var(--violet-deep); }
 .mode-offline-kb, .mode-error-fallback-kb { background: var(--amber-bg); color: var(--amber); }
 .model { background: #ede9fe; color: var(--violet-deep); }
 .grounded.yes { background: var(--green-bg); color: var(--green); }

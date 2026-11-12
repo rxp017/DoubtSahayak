@@ -113,6 +113,57 @@ a knowledge base of 933 entries**, not a bare chat wrapper.
    notes" warning; answers with no grounding note carry an "LLM-only"
    warning.
 
+## Model training with Adaption
+
+Added 12 Nov 2026 — **after** the Build League submission deadline
+(10 Nov 2026, 11:59 PM IST), so this is an after-submission improvement,
+not part of the submitted entry. Full detail: [`adaption/README.md`](adaption/README.md).
+
+- **What was trained:** nothing yet — **no model has been trained**.
+  Training is blocked on the owner creating an Adaption account and API
+  key (the 1,000 free Build League credits are claimed at sign-up on
+  adaptionlabs.ai; no BharatCode-specific claim link was found). No job
+  ID, no base model, no credits used. The training script
+  (`adaption/train.py`) is ready and exits with a clear message without
+  a key — it never fakes a run.
+- **Dataset:** 3,112 examples in `adaption/training-data.csv` (+ JSONL
+  with metadata), built by `adaption/build_dataset.py` from the 933 KB
+  entries plus 32 verified web-sourced GATE previous-year questions
+  (EduRev, GetMyUni, official GATE 2026 AR paper) and 348 Telugu/Hindi
+  question variants of real KB entries. **Every paper has ≥100 training
+  examples** (DA 112, all others 100; GA reached 100 only with the web
+  PYQs). The KB itself is still 933 entries — the 100-per-paper target
+  is met in the training dataset, not in the KB. Nothing was invented:
+  every example comes from a real KB entry or a real sourced note.
+- **How the app calls it:** the "Answer engine" toggle in the UI
+  (BharatCode Qwen / Adaption-tuned). `POST /api/ask` accepts
+  `engine: "adaption"`; `backend/solver.py` calls the tuned model via
+  Together AI's OpenAI-compatible inference endpoint
+  (`ADAPTION_API_KEY` + `ADAPTION_MODEL` env vars only). If the tuned
+  model is not deployed, or its call fails, the app falls back to the
+  BharatCode Qwen path and then to the offline KB — and the warning
+  says so. The mode badge always reports what actually answered:
+  `adaption` | `bharatcode` | `offline-kb` | `error-fallback-kb`.
+- **Serving cost warning:** training is covered by the free credits,
+  but serving a fine-tuned model on Together needs a dedicated endpoint
+  billed per GPU-hour — check the dashboard before deploying and do not
+  pay without the owner's word.
+
+### Sample answers (observed 12 Nov 2026)
+
+Question: "A Carnot engine works between 600 K and 300 K. What is its
+maximum efficiency?" (ME, Thermodynamics, English)
+
+| Engine | Answer (as observed) |
+|---|---|
+| BharatCode Qwen (`qwen-3.8-27b`, live) | "For a Carnot engine, the **maximum efficiency** depends only on the reservoir temperatures: η = 1 − Tc/Th … **Worked example:** Given Th = 600 K, Tc = 300 K, η = 1 − 300/600 = 0.5, i.e. 50%." (mode `bharatcode`, grounded, reference warning shown) |
+| Adaption-tuned | **Not trained yet** — no model exists, so no Adaption answer can be shown. The integration code was verified against a mock Together endpoint (mode `adaption`, model name shown in the badge) and its fallback was verified live: with no Adaption key set, `engine=adaption` fell back to BharatCode Qwen and the warning said so. |
+
+Same fallback verified for quicksort worst-case (CS, Algorithms):
+`engine=adaption` → mode `bharatcode`, model `qwen-3.8-27b`,
+"Adaption-tuned model is not deployed yet … so this answer came from
+the BharatCode model instead."
+
 ## Run locally
 
 ```bash
@@ -138,7 +189,9 @@ mode gives a real answer.
 - `GET /api/papers` — all papers with subjects and entry counts.
 - `GET /api/kb` — full KB grouped by paper, then subject (+ summary).
 - `GET /api/quiz?paper=ME&subject=Thermodynamics&n=5&seed=42` — MCQ quiz.
-- `POST /api/ask` — `{question, language, subject, paper}` → answer.
+- `POST /api/ask` — `{question, language, subject, paper, engine}` → answer.
+  `engine` is `"bharatcode"` (default) or `"adaption"` (Adaption-tuned
+  model; falls back to BharatCode when not deployed).
 - `GET /api/subjects`, `GET /api/examples`, `GET /health`.
 
 ## Deploy free (Vercel)
@@ -187,9 +240,11 @@ doubtsahayak/
 ├── README.md  DEMO.md  .env.example  vercel.json  requirements.txt  # root requirements.txt: httpx only, for Vercel serverless
 ├── package.json  vite.config.js  index.html
 ├── src/                    # React frontend (App.jsx, App.css, main.jsx)
+├── adaption/               # Adaption fine-tuning: build_dataset.py, train.py,
+│                           # training-data.csv/.jsonl (3,112 examples), README.md
 ├── backend/
 │   ├── app.py              # FastAPI server (local dev)
-│   ├── solver.py           # retrieval + BharatCode call + offline fallback + quiz
+│   ├── solver.py           # retrieval + BharatCode call + Adaption engine + offline fallback + quiz
 │   ├── kb.json             # 933 grounded KB entries (24 drill-notes + 909 reference)
 │   └── requirements.txt
 └── api/
@@ -201,11 +256,13 @@ doubtsahayak/
 
 ## What is NOT done / not verified
 
-- **No live BharatCode call has been made** — the API key exists but the
-  free student access was not active at last check (API returned 402
-  subscription_required; a community-request form / email to
-  contact@bharatcode.ai was pending the user's choice). The live path is
-  code-complete but untested until the key works.
+- **Live BharatCode call verified** — student access active since
+  10 Nov 2026; `/api/ask` answers live in mode `bharatcode`
+  (model `qwen-3.8-27b`). Re-verified locally 12 Nov 2026 (Carnot and
+  quicksort questions, both grounded, correct answers). The Adaption
+  engine is code-complete and fallback-verified, but **no Adaption
+  model has been trained yet** — see "Model training with Adaption"
+  above; it needs the owner's Adaption account + API key.
 - **On GitHub** — public repo https://github.com/rxp017/DoubtSahayak
   (pushed 9 Nov 2026, main branch). Live at
   https://doubt-sahayak.vercel.app/ (Vercel project created from the repo).

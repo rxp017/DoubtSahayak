@@ -97,8 +97,15 @@ const EXAMPLES = [
 
 const MODE_LABELS = {
   bharatcode: 'Live · BharatCode API',
+  adaption: 'Live · Adaption-tuned model',
   'offline-kb': 'Offline · from the knowledge base',
   'error-fallback-kb': 'API failed · offline notes shown',
+}
+
+const ENGINES = ['bharatcode', 'adaption']
+const ENGINE_LABELS = {
+  bharatcode: 'BharatCode Qwen',
+  adaption: 'Adaption-tuned',
 }
 
 const HISTORY_KEY = 'doubtsahayak-history'
@@ -202,6 +209,7 @@ export default function App() {
   const [paper, setPaper] = useState('DA')
   const [question, setQuestion] = useState('')
   const [language, setLanguage] = useState('English')
+  const [engine, setEngine] = useState('bharatcode')
   const [subject, setSubject] = useState('Probability & Stats')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -274,6 +282,7 @@ export default function App() {
           language,
           subject: subjectOverride ?? subject,
           paper: paperOverride ?? paper,
+          engine,
         }),
       })
       if (!res.ok) {
@@ -289,6 +298,7 @@ export default function App() {
           subject: subjectOverride ?? subject,
           paper: paperOverride ?? paper,
           mode: data.mode,
+          engine,
           ts: Date.now(),
         }),
       )
@@ -456,7 +466,30 @@ export default function App() {
                   ))}
                 </div>
               </div>
+              <div>
+                <span className="field-label">Answer engine</span>
+                <div className="seg">
+                  {ENGINES.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      className={engine === e ? 'active' : ''}
+                      onClick={() => setEngine(e)}
+                    >
+                      {ENGINE_LABELS[e]}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+            {engine === 'adaption' && (
+              <p className="hint">
+                Adaption-tuned model, fine-tuned on the GATE knowledge base
+                (3,100+ notes, all 30 papers + GA). If the tuned model
+                isn&apos;t deployed yet, the answer falls back to BharatCode
+                Qwen and says so.
+              </p>
+            )}
 
             <div style={{ marginTop: 18 }}>
               <span className="field-label">Subject · {paper}</span>

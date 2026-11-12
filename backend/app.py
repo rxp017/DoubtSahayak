@@ -50,6 +50,9 @@ class SolveRequest(BaseModel):
     language: str = "English"
     subject: str = "Probability & Stats"
     paper: str = "DA"
+    # "bharatcode" (default) or "adaption" (Adaption-tuned model; falls
+    # back to BharatCode when the tuned model is not deployed yet).
+    engine: str = "bharatcode"
 
 
 @app.get("/health")
@@ -100,10 +103,10 @@ def quiz(paper: str = "DA", subject: str | None = None, n: int = 5,
 
 @app.post("/api/ask")
 def ask(req: SolveRequest):
-    return solve(req.question, req.language, req.subject, req.paper)
+    return solve(req.question, req.language, req.subject, req.paper, req.engine)
 
 
 # Backwards-compatible alias (same handler, same path the old dev flow used).
 @app.post("/api/solve")
 def ask_alias(req: SolveRequest):
-    return solve(req.question, req.language, req.subject, req.paper)
+    return solve(req.question, req.language, req.subject, req.paper, req.engine)
