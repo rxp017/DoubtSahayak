@@ -49,6 +49,23 @@ def fail(msg: str, code: int = 2) -> None:
     sys.exit(code)
 
 
+def _clean_no_proxy() -> None:
+    """Drop bracketed IPv6 entries ([::1], [fd8b:...]) from NO_PROXY.
+
+    Same sandbox quirk as backend/solver.py: httpx rejects those entries
+    at Client() construction (InvalidURL: Invalid port), which crashes the
+    Adaption SDK before any request. localhost, 127.0.0.1 and unbracketed
+    ::1 still bypass the proxy. No-op on Vercel, where no such entries
+    exist.
+    """
+    for key in ("no_proxy", "NO_PROXY"):
+        if key not in os.environ:
+            continue
+        kept = [e for e in os.environ[key].split(",")
+                if not (e.strip().startswith("[") and e.strip().endswith("]"))]
+        os.environ[key] = ",".join(kept)
+
+
 def main() -> None:
     api_key = os.environ.get("ADAPTION_API_KEY", "").strip()
     if not api_key:
@@ -59,6 +76,7 @@ def main() -> None:
             "    ADAPTION_API_KEY=<key> python3 adaption/train.py\n"
             "No training was started and no credits were used."
         )
+    _clean_no_proxy()
     if not CSV_PATH.exists():
         fail(f"Training data not found: {CSV_PATH}. Run "
              "python3 adaption/build_dataset.py first.")
